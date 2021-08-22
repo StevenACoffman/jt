@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/StevenACoffman/jira-tool/pkg/atlassian"
+	"github.com/StevenACoffman/jt/pkg/atlassian"
 	"os"
 
 	"github.com/spf13/cobra"

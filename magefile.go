@@ -42,7 +42,7 @@ func Install() error {
 // Clean up after yourself
 func Clean() {
 	fmt.Println("Cleaning...")
-	os.RemoveAll("jt")
+	os.RemoveAll(appName)
 }
 
 var releaseTag = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
@@ -66,7 +66,7 @@ func Release(tag string) (err error) {
 			sh.RunV("git", "push", "--delete", "origin", "$TAG")
 		}
 	}()
-	return sh.RunV("goreleaser")
+	return sh.RunV("goreleaser", "--rm-dist")
 }
 
 

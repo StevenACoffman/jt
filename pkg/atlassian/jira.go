@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/StevenACoffman/jira-tool/pkg/middleware"
+	"github.com/StevenACoffman/jt/pkg/middleware"
 
 	"github.com/andygrunwald/go-jira"
 )

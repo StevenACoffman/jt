@@ -1,4 +1,4 @@
-module github.com/StevenACoffman/jira-tool
+module github.com/StevenACoffman/jt
 
 go 1.15
 
