@@ -29,3 +29,8 @@ Shared Flags:
 ### tips
 Use "jt [command] --help" for more information about a command.
 
+### installation
+```
+brew 
+```
+
