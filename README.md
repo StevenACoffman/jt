@@ -26,11 +26,22 @@ Shared Flags:
 | --config string |  config file (default is $HOME/.config/jira) |
 | -h, --help      |  help for jt |
 
-### tips
+### Tips
 Use "jt [command] --help" for more information about a command.
 
-### installation
+### Installation
+Homebrew users can do this:
 ```
-brew 
+brew tap StevenACoffman/jt
+brew install jt
 ```
+
+Go developers with `$HOME/bin` in their `$PATH` can run `mage` if they have [mage](https://magefile.org/) installed.
+
+Alternatively, `go run mage.go` will work even without `mage` installed, but it will still put the binary in `$HOME/bin`. 
+
+### Development and Limitations
+Currently, the config does not allow overriding the workflow states.
+
+Also, if a user doesn't have a config file, it should help them create one.
 
