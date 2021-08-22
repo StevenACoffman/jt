@@ -66,7 +66,7 @@ func Release(tag string) (err error) {
 			sh.RunV("git", "push", "--delete", "origin", "$TAG")
 		}
 	}()
-	return sh.RunV("goreleaser")
+	return sh.RunV("goreleaser", "--rm-dist")
 }
 
 

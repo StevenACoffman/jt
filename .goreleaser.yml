@@ -11,6 +11,7 @@ builds:
       - linux
       - windows
       - darwin
+    binary: jt
 archives:
   - replacements:
       darwin: Darwin
@@ -53,3 +54,9 @@ brews:
     # SPDX identifier of your app's license.
     # Default is empty.
     license: "MIT"
+
+    # Custom install script for brew.
+    # Default is 'bin.install "program"'.
+    install: |
+      bin.install "jt"
+      ...
