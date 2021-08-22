@@ -16,3 +16,7 @@
 
 # IntelliJ / Goland
 .idea
+
+# Output binary
+jt
+dist/
