@@ -1,6 +1,6 @@
 package main
 
-import "github.com/StevenACoffman/jira-tool/cmd"
+import "github.com/StevenACoffman/jt/cmd"
 
 func main() {
   cmd.Execute()

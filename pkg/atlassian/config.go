@@ -12,9 +12,9 @@ import (
 
 // Config struct
 type Config struct {
-	Host  string `json:"host",mapstructure:"host"`
-	User  string `json:"user",mapstructure:"user"`
-	Token string `json:"token",mapstructure:"token"`
+	Host  string `json:"host" mapstructure:"host"`
+	User  string `json:"user" mapstructure:"user"`
+	Token string `json:"token" mapstructure:"token"`
 }
 
 // ReadConfigFromFile returns an error if file does not exist

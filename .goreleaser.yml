@@ -33,23 +33,23 @@ brews:
   -
     # Name template of the recipe
     # Default to project name
-    name: jira-tool
+    name: jt
 
     # GitHub/GitLab repository to push the formula to
     # Gitea is not supported yet, but the support coming
     tap:
       owner: StevenACoffman
-      name: homebrew-jira-tool
+      name: homebrew-jt
       # Optionally a token can be provided, if it differs from the token provided to GoReleaser
       # token: "{{ .Env.GITHUB_AUTH_TOKEN }}"
     folder: Formula
     # Your app's homepage.
     # Default is empty.
-    homepage: "https://github.com/StevenACoffman/jira-tool"
+    homepage: "https://github.com/StevenACoffman/jt"
 
     # Template of your app's description.
     # Default is empty.
-    description: jt - jira-tool is a CLI tool for viewing and manipulating JIRA issues.
+    description: jt is a CLI tool for viewing and manipulating JIRA issues.
 
     # SPDX identifier of your app's license.
     # Default is empty.

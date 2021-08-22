@@ -2,7 +2,7 @@ package cmd
 
 import (
   "fmt"
-  "github.com/StevenACoffman/jira-tool/pkg/atlassian"
+  "github.com/StevenACoffman/jt/pkg/atlassian"
   "github.com/spf13/cobra"
   "os"
 
@@ -75,7 +75,7 @@ func initConfig() {
       os.Exit(1)
     }
 
-    // Search config in home directory with name ".jira-tool" (without extension).
+    // Search config in home directory with name ".jt" (without extension).
     v.AddConfigPath(home+"/.config")
     v.SetConfigName("jira")
   }

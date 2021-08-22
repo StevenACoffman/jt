@@ -42,7 +42,7 @@ func Install() error {
 // Clean up after yourself
 func Clean() {
 	fmt.Println("Cleaning...")
-	os.RemoveAll("jt")
+	os.RemoveAll(appName)
 }
 
 var releaseTag = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
