@@ -27,11 +27,34 @@ var rootCmd = &cobra.Command{
   Use:   "jt",
   Short: "jt - JIRA Issue Tool",
   Long: `jt is a CLI tool for viewing and manipulating JIRA issues.`,
+  Args: cobra.RangeArgs(1, 2),
   // Uncomment the following line if your bare application
   // has an action associated with it:
-  //	Run: func(cmd *cobra.Command, args []string) {
-  //	  fmt.Println("hi")
-  //  },
+  	Run: func(cmd *cobra.Command, args []string) {
+      if len(args) == 0 {
+        fmt.Println("You need to pass a desired jira status argument (and maybe a jira issue like TEAM-1234)")
+        os.Exit(exitFail)
+      }
+      var issueKey string
+      statusName := args[0]
+      if len(args) > 1 {
+        issueKey = args[1]
+      } else {
+
+      }
+      issue, _, issueErr := jiraClient.Issue.Get(issueKey, nil)
+      if issueErr != nil {
+        fmt.Printf("Unable to get Issue %s: %+v", issueKey, issueErr)
+        os.Exit(exitFail)
+      }
+
+      err := atlassian.MoveIssueToStatusByName(jiraClient, issue, issueKey, statusName)
+      if err != nil {
+        fmt.Println(err)
+        os.Exit(exitFail)
+      }
+      os.Exit(exitSuccess)
+   },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -51,10 +74,6 @@ func init() {
   // will be global for your application.
 
   rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/jira)")
-
-  // Cobra also supports local flags, which will only run
-  // when this action is called directly.
-  rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 

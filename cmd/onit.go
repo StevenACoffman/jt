@@ -26,7 +26,7 @@ var onitCmd = &cobra.Command{
 			os.Exit(exitFail)
 		}
 
-		err := atlassian.MoveIssueToStatus(jiraClient, issue, issueKey, atlassian.InProgressStatusID)
+		err := atlassian.MoveIssueToStatusByName(jiraClient, issue, issueKey, "In Progress")
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(exitFail)

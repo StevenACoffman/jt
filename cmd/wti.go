@@ -12,6 +12,7 @@ var wtiCmd = &cobra.Command{
 	Use:   "wti",
 	Short: "What The Issue? - View an issue",
 	Long: `What The Issue? Will View an issue.`,
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			fmt.Println("You failed to pass a jira issue argument")

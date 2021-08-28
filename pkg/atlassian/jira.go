@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/StevenACoffman/jt/pkg/middleware"
 
@@ -267,65 +268,6 @@ func JiraMarkupToGithubMarkdown(jiraClient *jira.Client, str string) string {
 	resolved := jiraAccountResolver.JiraMarkupMentionToEmail(str)
 	return JiraToMD(resolved)
 }
-// ordered states
-const TriageStatusID  = "10111"
-const ToDoStatusID = "10000"
-const BlockedStatusID = "10107"
-const InProgressStatusID = "10105"
-const DeployedDoneStatusID = "10001"
-const ReadyForQEStatusID = "10357"
-const InReviewStatusID = "10108"
-const LandedStatusID = "10149"
-const WontDoStatusID = "10250"
-
-var statusIDToName = map[string]string{
- TriageStatusID : "Triage",
- ToDoStatusID : "ToDo",
- BlockedStatusID : "Blocked",
- InProgressStatusID : "InProgress",
- DeployedDoneStatusID : "DeployedDone",
- ReadyForQEStatusID : "ReadyForQE",
- InReviewStatusID : "InReview",
- LandedStatusID : "Landed",
- WontDoStatusID : "WontDo",
-}
-
-var nameToID = map[string]string{
-"Triage":TriageStatusID,
-"ToDo":ToDoStatusID,
-"Blocked":BlockedStatusID,
-"InProgress":InProgressStatusID,
-"DeployedDone":DeployedDoneStatusID,
-"ReadyForQE":ReadyForQEStatusID,
-"InReview":InReviewStatusID,
-"Landed":LandedStatusID,
-"WontDo":WontDoStatusID,
-}
-
-func StatusNameFromID(statusID string) string {
-	return statusIDToName[statusID]
-}
-
-func MoveIssueToStatus(jiraClient *jira.Client, issue *jira.Issue, issueKey string, statusID string) error {
-	originalStatus := issue.Fields.Status.Name
-	if issue.Fields.Status.ID == statusID {
-		return fmt.Errorf("issue is Already in Status %s\n", statusIDToName[statusID])
-	}
-
-	err := transitionIssue(jiraClient, issueKey, statusID)
-	if err != nil {
-		return err
-	}
-	issue, _, err = jiraClient.Issue.Get(issueKey, nil)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Issue %s Status successfully changed from: %s and set to: %+v\n",
-		issueKey, originalStatus, issue.Fields.Status.Name)
-
-	return nil
-}
-
 
 func AssignIssueToSelf(jiraClient *jira.Client, issue *jira.Issue, issueKey string) error {
 	self, _, selfErr := jiraClient.User.GetSelf()
@@ -407,21 +349,78 @@ func TrimJira(s string) string {
 	return result
 }
 
-func transitionIssue(jiraClient *jira.Client, issueKey string, statusID string) error {
+func MoveIssueToStatusByName(jiraClient *jira.Client, issue *jira.Issue, issueKey string, statusName string) error {
+	originalStatus := issue.Fields.Status.Name
+	if issue.Fields.Status.Name == statusName ||
+		CaseInsensitiveContains(issue.Fields.Status.Name, statusName){
+		return fmt.Errorf("issue is Already in Status %s\n", issue.Fields.Status.Name)
+	}
+
+	err := transitionIssueByStatusName(jiraClient, issueKey, statusName)
+	if err != nil {
+		return err
+	}
+	issue, _, err = jiraClient.Issue.Get(issueKey, nil)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Issue %s Status successfully changed from: %s and set to: %+v\n",
+		issueKey, originalStatus, issue.Fields.Status.Name)
+
+	return nil
+}
+
+func transitionIssueByStatusName(jiraClient *jira.Client, issueKey string, statusName string) error {
 	var transitionID string
 	possibleTransitions, _, err := jiraClient.Issue.GetTransitions(issueKey)
 	if err != nil {
 		return err
 	}
 	for _, v := range possibleTransitions {
-		if v.To.ID == statusID {
+		if strings.EqualFold(v.To.Name, statusName) {
 			transitionID = v.ID
 			break
 		}
 	}
+	// no exact match, so remove whitespace so that "ToDo" arg will match "TO DO" status
 	if transitionID == "" {
-		return fmt.Errorf("there does not appear to be a valid transition to %s", statusIDToName[statusID])
+		for _, v := range possibleTransitions {
+			if strings.EqualFold(RemoveWhiteSpace(v.To.Name), statusName) {
+				transitionID = v.ID
+				break
+			}
+		}
+	}
+	// still no match, so look for partial, so "Done" arg will match "Deployed / Done"
+	if transitionID == "" {
+		// substring match only if exact match fails
+		for _, v := range possibleTransitions {
+			if CaseInsensitiveContains(v.To.Name, statusName) {
+				transitionID = v.ID
+				break
+			}
+		}
+	}
+
+	if transitionID == "" {
+		return fmt.Errorf("there does not appear to be a valid transition to %s", statusName)
 	}
 	_, err = jiraClient.Issue.DoTransition(issueKey, transitionID)
 	return err
+}
+
+func RemoveWhiteSpace(str string) string {
+	var b strings.Builder
+	b.Grow(len(str))
+	for _, ch := range str {
+		if !unicode.IsSpace(ch) {
+			b.WriteRune(ch)
+		}
+	}
+	return b.String()
+}
+
+func CaseInsensitiveContains(s, substr string) bool {
+	s, substr = strings.ToUpper(s), strings.ToUpper(substr)
+	return strings.Contains(s, substr)
 }
