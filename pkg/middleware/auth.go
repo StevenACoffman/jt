@@ -65,8 +65,6 @@ func NewBasicAuthHTTPClient(user, token string) *http.Client {
 	hrt := NewHeaderRoundTripper(rt, header)
 	hrt.BasicAuth(user, token)
 
-
-
 	return &http.Client{
 		Transport: hrt,
 		Timeout:   60 * time.Second,

@@ -4,6 +4,7 @@ package main
 
 import (
 	"os"
+
 	"github.com/magefile/mage/mage"
 )
 

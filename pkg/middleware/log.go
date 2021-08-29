@@ -3,9 +3,10 @@ package middleware
 import (
 	"fmt"
 	"io"
-	"moul.io/http2curl"
 	"net/http"
 	"time"
+
+	"moul.io/http2curl"
 )
 
 type LoggingRoundTripper struct {
@@ -29,7 +30,7 @@ func (rt *LoggingRoundTripper) RoundTrip(
 	defer func(begin time.Time) {
 		var msg string
 
-		if resp != nil && (resp.StatusCode < 200 || resp.StatusCode >= 300){
+		if resp != nil && (resp.StatusCode < 200 || resp.StatusCode >= 300) {
 
 			msg = fmt.Sprintf(
 				"method=%s host=%s path=%s status_code=%d took=%s\n",
@@ -41,16 +42,13 @@ func (rt *LoggingRoundTripper) RoundTrip(
 			)
 			if err != nil {
 				fmt.Fprintf(rt.logger, "%s : %+v\n", msg, err)
-
 			} else {
 				fmt.Fprintf(rt.logger, "%s\n", msg)
 			}
 			command, _ := http2curl.GetCurlCommand(req)
 			fmt.Println(command)
 		}
-
 	}(time.Now())
 
 	return rt.next.RoundTrip(req)
 }
-

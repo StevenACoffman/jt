@@ -12,8 +12,8 @@ import (
 
 // Config struct
 type Config struct {
-	Host  string `json:"host" mapstructure:"host"`
-	User  string `json:"user" mapstructure:"user"`
+	Host  string `json:"host"  mapstructure:"host"`
+	User  string `json:"user"  mapstructure:"user"`
 	Token string `json:"token" mapstructure:"token"`
 }
 
@@ -95,4 +95,46 @@ func expandTilde(path string) (string, error) {
 		}
 	}
 	return "/" + filepath.Join(paths...), nil
+}
+
+// CheckWriteable checks if config file is writeable. This should
+// be called before asking for credentials
+func CheckWriteable(filename string) error {
+	err := os.MkdirAll(filepath.Dir(filename), 0o771)
+	if err != nil {
+		return err
+	}
+
+	w, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
+	if err != nil {
+		return err
+	}
+	w.Close()
+
+	return nil
+}
+
+func CheckConfigFileExists(filename string) bool {
+	if _, err := os.Stat(filename); err == nil {
+		return true
+	}
+	return false
+}
+
+func SaveConfig(filename string, c *Config) error {
+	err := os.MkdirAll(filepath.Dir(filename), 0o771)
+	if err != nil {
+		return err
+	}
+
+	w, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	file, marshalErr := json.Marshal(c)
+	if marshalErr != nil {
+		return marshalErr
+	}
+	return ioutil.WriteFile(filename, file, 0o644)
 }

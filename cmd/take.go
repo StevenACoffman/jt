@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/StevenACoffman/jt/pkg/atlassian"
 	"os"
+
+	"github.com/StevenACoffman/jt/pkg/atlassian"
 
 	"github.com/spf13/cobra"
 )
@@ -12,13 +13,18 @@ import (
 var takeCmd = &cobra.Command{
 	Use:   "take",
 	Short: "Assign an issue to you",
-	Long: `Assign an issue to you`,
+	Long:  `Assign an issue to you`,
+	Args:  cobra.RangeArgs(0, 1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 {
-			fmt.Println("You failed to pass a jira issue argument")
-			return
+		if jiraConfig == nil {
+			configure()
 		}
-		issueKey := args[0]
+		var issueKey string
+		if len(args) == 0 {
+			issueKey = getIssueFromGitBranch()
+		} else {
+			issueKey = args[0]
+		}
 		issue, _, issueErr := jiraClient.Issue.Get(issueKey, nil)
 		if issueErr != nil {
 			fmt.Printf("Unable to get Issue %s: %+v", issueKey, issueErr)

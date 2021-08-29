@@ -18,7 +18,7 @@ var (
 	// Default target to run when none is specified
 	// If not set, running mage will list available targets
 	Default        = Install
-	appName = "jt"
+	appName        = "jt"
 	installPath    string
 	currentWorkDir string
 	// allow user to override go executable by running as GOEXE=xxx make ... on unix-like systems
@@ -36,7 +36,7 @@ func Build() error {
 func Install() error {
 	mg.Deps(Build)
 	fmt.Println("Installing...")
-	return os.Rename(filepath.Join(currentWorkDir,"jt"), installPath)
+	return os.Rename(filepath.Join(currentWorkDir, "jt"), installPath)
 }
 
 // Clean up after yourself
@@ -51,7 +51,9 @@ var releaseTag = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
 // really only useful for maintainers
 func Release(tag string) (err error) {
 	if !releaseTag.MatchString(tag) {
-		return errors.New("TAG environment variable must be in semver vx.x.x format, but was " + tag)
+		return errors.New(
+			"TAG environment variable must be in semver vx.x.x format, but was " + tag,
+		)
 	}
 
 	if err := sh.RunV("git", "tag", "-a", tag, "-m", tag); err != nil {
@@ -69,7 +71,6 @@ func Release(tag string) (err error) {
 	return sh.RunV("goreleaser", "--rm-dist")
 }
 
-
 // tag returns the git tag for the current branch or "" if none.
 func tag() string {
 	s, _ := sh.Output("git", "describe", "--tags")
@@ -81,7 +82,6 @@ func hash() string {
 	hash, _ := sh.Output("git", "rev-parse", "--short", "HEAD")
 	return hash
 }
-
 
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {

@@ -2,23 +2,30 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/StevenACoffman/jt/pkg/atlassian"
 
 	"github.com/spf13/cobra"
 )
+
 var omitTitle, omitDescription bool
+
 // wtiCmd represents the wti command
 var wtiCmd = &cobra.Command{
 	Use:   "wti",
 	Short: "What The Issue? - View an issue",
-	Long: `What The Issue? Will View an issue.`,
-	Args: cobra.MaximumNArgs(1),
+	Long:  `What The Issue? Will View an issue.`,
+	Args:  cobra.RangeArgs(0, 1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 {
-			fmt.Println("You failed to pass a jira issue argument")
-			return
+		if jiraConfig == nil {
+			configure()
 		}
-		issueKey := args[0]
+		var issueKey string
+		if len(args) == 0 {
+			issueKey = getIssueFromGitBranch()
+		} else {
+			issueKey = args[0]
+		}
 
 		jiraIssue, issueErr := atlassian.GetIssue(jiraClient, issueKey)
 		if issueErr != nil {
@@ -35,7 +42,6 @@ var wtiCmd = &cobra.Command{
 						jiraClient, jiraIssue.Fields.Description))
 			}
 		}
-
 	},
 }
 
@@ -53,5 +59,5 @@ func init() {
 	flags := wtiCmd.Flags()
 	//.BoolP("toggle", "t", false, "Help message for toggle")
 	flags.BoolVarP(&omitTitle, "no-title", "t", false, "Do Not Print Title")
-	flags.BoolVarP(&omitDescription, "no-description","d", false, "Do Not Print Description")
+	flags.BoolVarP(&omitDescription, "no-description", "d", false, "Do Not Print Description")
 }

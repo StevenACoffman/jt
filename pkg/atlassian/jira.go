@@ -9,9 +9,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/StevenACoffman/jt/pkg/middleware"
-
 	"github.com/andygrunwald/go-jira"
+
+	"github.com/StevenACoffman/jt/pkg/middleware"
 )
 
 // GetJIRAClient takes a config, and makes a JIRAClient configured
@@ -53,17 +53,159 @@ func GetIssue(jiraClient *jira.Client, issue string) (*jira.Issue, error) {
 	return jiraIssue, nil
 }
 
-// Jiration - convenience for Jira Markup to Github Markdown translation rule
-type Jiration struct {
+func AssignIssueToSelf(jiraClient *jira.Client, issue *jira.Issue, issueKey string) error {
+	self, _, selfErr := jiraClient.User.GetSelf()
+	if selfErr != nil {
+		return fmt.Errorf("unable to get myself: %+v", selfErr)
+	}
+
+	if issue.Fields.Assignee == nil || self.AccountID != issue.Fields.Assignee.AccountID {
+		_, assignErr := jiraClient.Issue.UpdateAssignee(issueKey, self)
+		if assignErr != nil {
+			return fmt.Errorf("unable to assign %s to yourself: %+v", issueKey, assignErr)
+		}
+		fmt.Printf("Re-Assigned %s from %s\n", issueKey, displayJiraUser(issue.Fields.Assignee))
+	} else {
+		fmt.Println("Already assigned to to you")
+	}
+	return nil
+}
+
+// ParseJiraIssueFromBranch - Sanitizes input
+//  + Trims leading "feature/" (or whatever GIT_BRANCH_PREFIX set to)
+//  + Trims leading and trailing whitespace
+//  + Trims anything after ABCD-1234
+// If there is no jira issue match, returns whatever was passed
+func ParseJiraIssueFromBranch(issueKey string) string {
+	if issueKey == "" {
+		// nothing to do here, I guess
+		return issueKey
+	}
+	branchPrefix := getEnv("GIT_BRANCH_PREFIX", "feature/")
+
+	issueKey = strings.TrimSpace(issueKey)
+	issueKey = strings.TrimPrefix(issueKey, branchPrefix)
+	if issueKey == "" {
+		return issueKey
+	}
+
+	res := trimJira(issueKey)
+
+	return res
+}
+
+// trimJira will remove everything before and after the last ABCD-1234 or ABCD_1234
+// returns empty string if no jira issue is found
+func trimJira(s string) string {
+	var re *regexp.Regexp
+	var result string
+	re = regexp.MustCompile("([a-zA-Z]{1,4}-[1-9][0-9]{0,6})")
+	matches := re.FindAllStringSubmatch(strings.Replace(s, "_", "-", -1), -1)
+	for _, match := range matches {
+		for _, m := range match {
+			result = m
+		}
+	}
+	return result
+}
+
+func MoveIssueToStatusByName(
+	jiraClient *jira.Client,
+	issue *jira.Issue,
+	issueKey string,
+	statusName string,
+) error {
+	originalStatus := issue.Fields.Status.Name
+	if issue.Fields.Status.Name == statusName ||
+		caseInsensitiveContains(issue.Fields.Status.Name, statusName) {
+		return fmt.Errorf("issue is Already in Status %s\n", issue.Fields.Status.Name)
+	}
+
+	err := transitionIssueByStatusName(jiraClient, issueKey, statusName)
+	if err != nil {
+		return err
+	}
+	issue, _, err = jiraClient.Issue.Get(issueKey, nil)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Issue %s Status successfully changed from: %s and set to: %+v\n",
+		issueKey, originalStatus, issue.Fields.Status.Name)
+
+	return nil
+}
+
+func transitionIssueByStatusName(
+	jiraClient *jira.Client,
+	issueKey string,
+	statusName string,
+) error {
+	var transitionID string
+	possibleTransitions, _, err := jiraClient.Issue.GetTransitions(issueKey)
+	if err != nil {
+		return err
+	}
+	for _, v := range possibleTransitions {
+		if strings.EqualFold(v.To.Name, statusName) {
+			transitionID = v.ID
+			break
+		}
+	}
+	// no exact match, so remove whitespace so that "ToDo" arg will match "TO DO" status
+	if transitionID == "" {
+		for _, v := range possibleTransitions {
+			if strings.EqualFold(removeWhiteSpace(v.To.Name), statusName) {
+				transitionID = v.ID
+				break
+			}
+		}
+	}
+	// still no match, so look for partial, so "Done" arg will match "Deployed / Done"
+	if transitionID == "" {
+		// substring match only if exact match fails
+		for _, v := range possibleTransitions {
+			if caseInsensitiveContains(v.To.Name, statusName) {
+				transitionID = v.ID
+				break
+			}
+		}
+	}
+	// still no match. sigh. give up.
+	if transitionID == "" {
+		return fmt.Errorf("there does not appear to be a valid transition to %s", statusName)
+	}
+	_, err = jiraClient.Issue.DoTransition(issueKey, transitionID)
+	return err
+}
+
+func removeWhiteSpace(str string) string {
+	var b strings.Builder
+	b.Grow(len(str))
+	for _, ch := range str {
+		if !unicode.IsSpace(ch) {
+			b.WriteRune(ch)
+		}
+	}
+	return b.String()
+}
+
+func caseInsensitiveContains(s, substr string) bool {
+	s, substr = strings.ToUpper(s), strings.ToUpper(substr)
+	return strings.Contains(s, substr)
+}
+
+// jiration - convenience for Jira Markup to Github Markdown translation rule
+type jiration struct {
 	re   *regexp.Regexp
 	repl interface{}
 }
 
 // JiraToMD - This uses some regular expressions to make a reasonable translation
-// from Jira Markup to Github Markdown. It is not a complete PEG so it will break down
-// especially for more complicated nested formatting (lists inside of lists)
+// from Jira Markup to Github Markdown. It is not a complete PEG, so it will break down
+// especially for more complicated nested formatting (lists inside of lists).
+// pandoc seems to have different problems. Pick your poison.
 func JiraToMD(str string) string {
-	jirations := []Jiration{
+	jirations := []jiration{
 		{ // UnOrdered Lists
 			re: regexp.MustCompile(`(?m)^[ \t]*(\*+)\s+`),
 			repl: func(groups []string) string {
@@ -182,7 +324,7 @@ func JiraToMD(str string) string {
 		case string:
 			str = jiration.re.ReplaceAllString(str, v)
 		case func([]string) string:
-			str = ReplaceAllStringSubmatchFunc(jiration.re, str, v)
+			str = replaceAllStringSubmatchFunc(jiration.re, str, v)
 		default:
 			fmt.Printf("I don't know about type %T!\n", v)
 		}
@@ -190,13 +332,13 @@ func JiraToMD(str string) string {
 	return str
 }
 
-type JiraResolver struct {
+type jiraResolver struct {
 	JiraClient *jira.Client
 }
 
 // JiraMarkupMentionToEmail will replace JiraMarkup account mentions
 // with Display Name followed by parenthetical email addresses
-func (j *JiraResolver) JiraMarkupMentionToEmail(str string) string {
+func (j *jiraResolver) JiraMarkupMentionToEmail(str string) string {
 	re := regexp.MustCompile(`(?m)(\[~accountid:)([a-zA-Z0-9-:]+)(\])`)
 	rfunc := func(groups []string) string {
 		// groups[0] is initial match
@@ -214,16 +356,16 @@ func (j *JiraResolver) JiraMarkupMentionToEmail(str string) string {
 			return groups[0]
 		}
 
-		return DisplayJiraUser(jiraUser)
+		return displayJiraUser(jiraUser)
 	}
-	return ReplaceAllStringSubmatchFunc(re, str, rfunc)
+	return replaceAllStringSubmatchFunc(re, str, rfunc)
 }
 
-func DisplayJiraUser(jiraUser *jira.User) string {
+func displayJiraUser(jiraUser *jira.User) string {
 	return jiraUser.DisplayName + " (" + jiraUser.EmailAddress + ")"
 }
 
-// ReplaceAllStringSubmatchFunc - Invokes Callback for Regex Replacement
+// replaceAllStringSubmatchFunc - Invokes Callback for Regex Replacement
 // The repl function takes an unusual string slice argument:
 // - The 0th element is the complete match
 // - The following slice elements are the nth string found
@@ -235,7 +377,7 @@ func DisplayJiraUser(jiraUser *jira.User) string {
 // Python: re.sub(pattern, callback, subject)
 // JavaScript: subject.replace(pattern, callback)
 // See https://gist.github.com/elliotchance/d419395aa776d632d897
-func ReplaceAllStringSubmatchFunc(
+func replaceAllStringSubmatchFunc(
 	re *regexp.Regexp,
 	str string,
 	repl func([]string) string,
@@ -262,165 +404,9 @@ func ReplaceAllStringSubmatchFunc(
 }
 
 func JiraMarkupToGithubMarkdown(jiraClient *jira.Client, str string) string {
-	jiraAccountResolver := JiraResolver{
+	jiraAccountResolver := jiraResolver{
 		JiraClient: jiraClient,
 	}
 	resolved := jiraAccountResolver.JiraMarkupMentionToEmail(str)
 	return JiraToMD(resolved)
-}
-
-func AssignIssueToSelf(jiraClient *jira.Client, issue *jira.Issue, issueKey string) error {
-	self, _, selfErr := jiraClient.User.GetSelf()
-	if selfErr != nil {
-		return fmt.Errorf("unable to get myself: %+v", selfErr)
-	}
-
-	if issue.Fields.Assignee == nil || self.AccountID != issue.Fields.Assignee.AccountID {
-		_, assignErr := jiraClient.Issue.UpdateAssignee(issueKey, self)
-		if assignErr != nil {
-			return fmt.Errorf("unable to assign %s to yourself: %+v", issueKey, assignErr)
-		}
-		fmt.Printf("Re-Assigned %s from %s\n", issueKey, DisplayJiraUser(issue.Fields.Assignee))
-	} else {
-		fmt.Println("Already assigned to to you")
-	}
-	return nil
-}
-
-// ParseJiraIssue - Sanitizes input
-//  + Trims leading and trailing whitespace
-//  + Trims a browse URL
-//  + Trims anything after ABCD-1234
-// If there is no jira issue match, returns empty string
-func ParseJiraIssue(issueKey, host string) string {
-	issueKey = strings.TrimSpace(issueKey)
-	if issueKey == "" {
-		return issueKey
-	}
-	if strings.HasPrefix(issueKey, host) {
-		issueKey = strings.TrimPrefix(issueKey, host)
-		issueKey = strings.TrimPrefix(issueKey, "/browse/")
-	}
-	// This will remove everything after the ABCD-1234
-	reg := regexp.MustCompile(`(.*/)?(?P<Jira>[A-Za-z]+-[0-9]+).*`)
-	if reg.MatchString(issueKey) {
-		res := reg.ReplaceAllString(issueKey, "${Jira}")
-		return res
-	}
-	return ""
-}
-
-// ParseJiraIssueFromBranch - Sanitizes input
-//  + Trims leading "feature/" (or whatever GIT_WORKON_PREFIX set to)
-//  + Trims leading and trailing whitespace
-//  + Trims a browse URL
-//  + Trims anything after ABCD-1234
-// If there is no jira issue match, returns whatever was passed
-func ParseJiraIssueFromBranch(issueKey, host, branchPrefix string) string {
-	issueKey = strings.TrimSpace(issueKey)
-	issueKey = strings.TrimPrefix(issueKey, branchPrefix)
-	if issueKey == "" {
-		return issueKey
-	}
-	if strings.HasPrefix(issueKey, host) {
-		issueKey = strings.TrimPrefix(issueKey, host)
-		issueKey = strings.TrimPrefix(issueKey, "/browse/")
-	}
-
-	res := TrimJira(issueKey)
-	if res != "" {
-		res = fmt.Sprintf("https://khanacademy.atlassian.net/browse/%s", res)
-	}
-	return res
-}
-
-// TrimJira will remove everything before and after the last ABCD-1234
-// returns empty string if no jira issue is found
-func TrimJira(s string) string {
-	var re *regexp.Regexp
-	var result string
-	re = regexp.MustCompile("([a-zA-Z]{1,4}-[1-9][0-9]{0,6})")
-	matches := re.FindAllStringSubmatch(s, -1)
-	for _, match := range matches {
-		for _, m := range match {
-			result = m
-		}
-	}
-	return result
-}
-
-func MoveIssueToStatusByName(jiraClient *jira.Client, issue *jira.Issue, issueKey string, statusName string) error {
-	originalStatus := issue.Fields.Status.Name
-	if issue.Fields.Status.Name == statusName ||
-		CaseInsensitiveContains(issue.Fields.Status.Name, statusName){
-		return fmt.Errorf("issue is Already in Status %s\n", issue.Fields.Status.Name)
-	}
-
-	err := transitionIssueByStatusName(jiraClient, issueKey, statusName)
-	if err != nil {
-		return err
-	}
-	issue, _, err = jiraClient.Issue.Get(issueKey, nil)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Issue %s Status successfully changed from: %s and set to: %+v\n",
-		issueKey, originalStatus, issue.Fields.Status.Name)
-
-	return nil
-}
-
-func transitionIssueByStatusName(jiraClient *jira.Client, issueKey string, statusName string) error {
-	var transitionID string
-	possibleTransitions, _, err := jiraClient.Issue.GetTransitions(issueKey)
-	if err != nil {
-		return err
-	}
-	for _, v := range possibleTransitions {
-		if strings.EqualFold(v.To.Name, statusName) {
-			transitionID = v.ID
-			break
-		}
-	}
-	// no exact match, so remove whitespace so that "ToDo" arg will match "TO DO" status
-	if transitionID == "" {
-		for _, v := range possibleTransitions {
-			if strings.EqualFold(RemoveWhiteSpace(v.To.Name), statusName) {
-				transitionID = v.ID
-				break
-			}
-		}
-	}
-	// still no match, so look for partial, so "Done" arg will match "Deployed / Done"
-	if transitionID == "" {
-		// substring match only if exact match fails
-		for _, v := range possibleTransitions {
-			if CaseInsensitiveContains(v.To.Name, statusName) {
-				transitionID = v.ID
-				break
-			}
-		}
-	}
-
-	if transitionID == "" {
-		return fmt.Errorf("there does not appear to be a valid transition to %s", statusName)
-	}
-	_, err = jiraClient.Issue.DoTransition(issueKey, transitionID)
-	return err
-}
-
-func RemoveWhiteSpace(str string) string {
-	var b strings.Builder
-	b.Grow(len(str))
-	for _, ch := range str {
-		if !unicode.IsSpace(ch) {
-			b.WriteRune(ch)
-		}
-	}
-	return b.String()
-}
-
-func CaseInsensitiveContains(s, substr string) bool {
-	s, substr = strings.ToUpper(s), strings.ToUpper(substr)
-	return strings.Contains(s, substr)
 }

@@ -2,15 +2,17 @@
 
 `jt` is a CLI tool for viewing and manipulating JIRA issues.
 
-An example usage to transition an issue to a new status:
+One common example usage to transition an issue to a new status:
 ```
 jt "In Progress" TEAM-1234
 ```
 
-If you are in a git repository on a topic branch who's name matches `team-1234[-whatever]`, you can omit
+If you are in a git repository where the topic branch's name matches `[whatever-]team-1234[-whatever]`, you can omit
 the issue argument as it is implied.
 
-### Usage:
+Yeah, we even let you use underscores.
+
+### Common Usage:
 jt [new state] [issue number]
 
 **Note:** 
@@ -30,11 +32,11 @@ JIRA board's workflow.
 ### Other Available Commands:
 | command | what it does |
 |---|---|
-| completion  | generate the autocompletion script for the specified shell |
-| help        | Help about any command |
 | onit        | Self-assign and transition an issue to In Progress status |
 | take        | Assign an issue to you |
 | wti         | What The Issue? - View an issue in Github Markdown |
+| completion  | generate the autocompletion script for the specified shell |
+| help        | Help about any command |
 
 Shared Flags:
 | flag | what it does |
