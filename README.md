@@ -35,6 +35,7 @@ JIRA board's workflow.
 | onit        | Self-assign and transition an issue to In Progress status |
 | take        | Assign an issue to you |
 | wti         | What The Issue? - View an issue in Github Markdown |
+| config      | Will save the JIRA token, email, and tenant url to a config file
 | completion  | generate the autocompletion script for the specified shell |
 | help        | Help about any command |
 
@@ -58,10 +59,23 @@ Go developers with `$HOME/bin` in their `$PATH` can run `mage` if they have [mag
 
 Alternatively, `go run mage.go` will work even without `mage` installed, but it will still put the binary in `$HOME/bin`. 
 
-### Development and Limitations
-Also, if a user doesn't have a config file, it should help them create one.
+### Future Development
+Currently, this tool is all JIRA, other than translating Atlassian Markup into Github Markdown.
+
+I would like to combine JIRA + Github steps. For instance, moving a story to `In Progress`,
+while also creating a Github Pull Request in Draft. 
+
+It would be nice if it took the JIRA story's description's translation as Github Markdown
+and used it in creating the Github Pull Request. 
+
+The programming is easy, but it is tricky to find unambiguous commands that fit all possible workflows.
 
 ### Alternatives
 
 There is another [jira cli](https://github.com/go-jira/jira) that is quite sophisticated, featureful,
 and maybe complicated, but I found custom workflow transitions either didn't work, or were cumbersome.
+
+### Credit Where Credit is Due
+
+This tool uses some excellent libraries and tools like [andygrunwald/go-jira](https://github.com/andygrunwald/go-jira),
+[spf13/cobra](https://github.com/spf13/cobra), [mage](https://magefile.org/), [moul/http2curl](https://github.com/moul/http2curl) and [bubbletea](github.com/charmbracelet/bubbletea)

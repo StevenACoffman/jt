@@ -9,7 +9,8 @@ require (
 	github.com/charmbracelet/lipgloss v0.1.2
 	github.com/magefile/mage v1.11.0
 	github.com/mitchellh/go-homedir v1.0.0
-	github.com/mritd/bubbles v0.0.0-20210825105013-cb7a572fb831
+	github.com/muesli/reflow v0.3.0 // indirect
+	github.com/muesli/termenv v0.9.0 // indirect
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	moul.io/http2curl v1.0.0
