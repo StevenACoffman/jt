@@ -45,6 +45,46 @@ func Clean() {
 	os.RemoveAll(appName)
 }
 
+// Fmt - Run gofmt linters
+func Fmt() error {
+	err := sh.Run("goimports", "-l", "-w", "-local", "github.com/Khan", ".")
+	if err != nil {
+		fmt.Printf("ERROR: running goimports: %v\n", err)
+		return err
+	}
+	err = sh.Run("go", "run", "mvdan.cc/gofumpt", "-s", "-l", "-w", ".")
+	if err != nil {
+		fmt.Printf("ERROR: running gofumpt: %v\n", err)
+		return err
+	}
+	if commandExists("gofumpt") {
+		err = sh.Run(
+			"go",
+			"run",
+			"github.com/segmentio/golines",
+			//"golines",
+			"--shorten-comments",
+			"--base-formatter=gofumpt",
+			"-w",
+			".",
+		)
+	} else {
+		err = sh.Run(
+			"go",
+			"run",
+			"github.com/segmentio/golines",
+			"--shorten-comments",
+			"-w",
+			".",
+		)
+	}
+	if err != nil {
+		fmt.Printf("ERROR: running golines: %v\n", err)
+		return err
+	}
+	return nil
+}
+
 var releaseTag = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
 
 // Generates a new release. Expects a version tag in vx.x.x format.
